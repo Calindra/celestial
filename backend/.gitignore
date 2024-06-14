@@ -2,3 +2,4 @@
 /dist
 /node_modules
 src/schema.d.ts
+src/rollups.ts
