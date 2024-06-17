@@ -9,5 +9,9 @@
   "author": "",
   "license": "MIT",
   "description": "",
-  "workspaces": ["frontend", "backend"]
+  "workspaces": [
+    "frontend",
+    "backend",
+    "dapp"
+  ]
 }
