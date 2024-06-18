@@ -5,7 +5,7 @@ import { components, paths } from "./schema";
 import { decodeFunctionData } from "viem"
 import { Buffer } from "node:buffer"
 
-const celestiaAbi = [
+export const celestiaAbi = [
   {
     "constant": true,
     "inputs": [
@@ -45,54 +45,20 @@ type RequestHandlerResult = components["schemas"]["Finish"]["status"];
 type RollupsRequest = components["schemas"]["RollupRequest"];
 type InspectRequestHandler = (data: InspectRequestData) => Promise<void>;
 type AdvanceRequestHandler = (
-  data: AdvanceRequestData
+  data: AdvanceRequestData,
+  POST: (ReturnType<typeof createClient<paths>>["POST"]),
 ) => Promise<RequestHandlerResult>;
+
+type HandlerGio = (...args: Parameters<AdvanceRequestHandler>) => Promise<string>;
 
 const rollupServer = process.env.ROLLUP_HTTP_SERVER_URL;
 console.log("HTTP rollup_server url is " + rollupServer);
 
-const handleAdvance: AdvanceRequestHandler = async (data) => {
+const handleAdvance: AdvanceRequestHandler = async (data, POST) => {
   console.log("Received advance request data " + JSON.stringify(data));
 
   try {
-    const { POST } = createClient<paths>({ baseUrl: rollupServer });
-
-    const { args: [namespace, blockHeight, shareStart, shareEnd] } = decodeFunctionData({
-      abi: celestiaAbi,
-      data: data.payload
-    })
-
-    const gioID = "0x";
-
-    console.log({
-      namespace,
-      blockHeight,
-      shareStart,
-      shareEnd,
-      gioID
-    });
-
-    const { data: gioRes, error } = await POST("/gio", {
-      body: {
-        domain: 714,
-        id: gioID,
-      },
-      parseAs: "json",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (error || !gioRes) {
-      throw new Error(error ?? "Gio request failed");
-    }
-
-    const buffer = Buffer.from(gioRes.data, "hex");
-    const text = buffer.toString("utf-8");
-    const output = JSON.stringify({
-      ...gioRes,
-      text,
-    }, null, 4);
+    const output = await fetchAndDecodeData(data, POST);
     console.log("GioRes", output);
 
   } catch (e) {
@@ -105,6 +71,46 @@ const handleAdvance: AdvanceRequestHandler = async (data) => {
 const handleInspect: InspectRequestHandler = async (data) => {
   console.log("Received inspect request data " + JSON.stringify(data));
 };
+
+export const fetchAndDecodeData: HandlerGio = async (data, POST) => {
+  const { args: [namespace, blockHeight, shareStart, shareEnd] } = decodeFunctionData({
+    abi: celestiaAbi,
+    data: data.payload
+  });
+
+  const gioID = "0x";
+
+  console.log({
+    namespace,
+    blockHeight,
+    shareStart,
+    shareEnd,
+    gioID
+  });
+
+  const { data: gioRes, error } = await POST("/gio", {
+    body: {
+      domain: 714,
+      id: gioID,
+    },
+    parseAs: "json",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (error || !gioRes) {
+    throw new Error(error ?? "Gio request failed");
+  }
+
+  const buffer = Buffer.from(gioRes.data, "hex");
+  const text = buffer.toString("utf-8");
+  const output = JSON.stringify({
+    ...gioRes,
+    text,
+  }, null, 4);
+  return output;
+}
 
 const main = async () => {
   const { POST } = createClient<paths>({ baseUrl: rollupServer });
@@ -119,7 +125,7 @@ const main = async () => {
       const data = (await response.json()) as RollupsRequest;
       switch (data.request_type) {
         case "advance_state":
-          status = await handleAdvance(data.data as AdvanceRequestData);
+          status = await handleAdvance(data.data as AdvanceRequestData, POST);
           break;
         case "inspect_state":
           await handleInspect(data.data as InspectRequestData);
@@ -132,6 +138,6 @@ const main = async () => {
 };
 
 main().catch((e) => {
-  console.log(e);
+  console.error(e);
   process.exit(1);
 });
