@@ -41,8 +41,6 @@ export const celestiaRelayInputBox = [
     "type": "function"
   }
 ] as const
-
-
 export const celestiaAbi = [
   {
     "constant": true,
