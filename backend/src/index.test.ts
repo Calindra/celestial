@@ -2,23 +2,24 @@ import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import createClient from "openapi-fetch";
 import type { components, paths } from "./schema"
-import { afterEach, beforeAll, describe, it, afterAll, expect } from "vitest"
+import { afterEach, before, describe, it, after } from "node:test"
+import assert from 'node:assert';
 import { fetchAndDecodeData, celestiaRelayInputBox } from "./handleGIO";
 import { encodeFunctionData, pad, stringToHex } from "viem";
 
 describe("index", () => {
     const server = setupServer();
 
-    beforeAll(() => server.listen({
+    before(() => server.listen({
         onUnhandledRequest: (req) => {
             `Received an unhandled request: ${req.method} ${req.url}`
         }
     }));
 
     afterEach(() => server.resetHandlers());
-    afterAll(() => server.close());
+    after(() => server.close());
 
-    it("should handle advance request", async (ctx) => {
+    it("should handle advance request", async () => {
         const baseUrl = "http://localhost:3000";
         const exampleStr = "CartesiRocksCelestia";
 
@@ -60,6 +61,17 @@ describe("index", () => {
         }
         ));
 
-        await expect(fetchAndDecodeData(data, POST).then(x => JSON.parse(x))).resolves.toEqual(expect.objectContaining(responseGIO));
+        let result: object = {};
+
+        const call = async () => {
+            const decoded = await fetchAndDecodeData(data, POST);
+            result = JSON.parse(decoded);
+            return result;
+        }
+        await assert.doesNotReject(call);
+        assert.ok("data" in result, "data key is missing");
+        assert.strictEqual(result.data, responseGIO.data, "data is not equal");
+        assert.ok("code" in result, "code key is missing");
+        assert.strictEqual(result.code, responseGIO.code, "code is not equal");
     });
 })
