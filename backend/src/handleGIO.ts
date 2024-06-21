@@ -76,53 +76,48 @@ export const celestiaAbi = [
 ] as const
 
 export const fetchAndDecodeData: HandlerGio = async (data, POST) => {
-  try {
-    const { args: [namespaceFull, _dataRoot, blockHeight, shareStart, shareEnd] } = decodeFunctionData({
-      abi: celestiaRelayInputBox,
-      data: data.payload
-    });
+  const { args: [namespaceFull, _dataRoot, blockHeight, shareStart, shareEnd] } = decodeFunctionData({
+    abi: celestiaRelayInputBox,
+    data: data.payload
+  });
 
-    console.log({
-      namespaceFull,
-      blockHeight,
-      shareStart,
-      shareEnd,
-    });
+  console.log({
+    namespaceFull,
+    blockHeight,
+    shareStart,
+    shareEnd,
+  });
 
-    const namespace = slice(namespaceFull, -29);
+  const namespace = slice(namespaceFull, -29);
 
-    const gioID = encodeFunctionData({
-      abi: celestiaAbi,
-      args: [namespace, blockHeight, shareStart, shareEnd]
-    });
+  const gioID = encodeFunctionData({
+    abi: celestiaAbi,
+    args: [namespace, blockHeight, shareStart, shareEnd]
+  });
 
-    console.log({
-      gioID
-    });
+  console.log({
+    gioID
+  });
 
-    const { data: gioRes, error } = await POST("/gio", {
-      body: {
-        domain: 714,
-        id: gioID,
-      },
-      parseAs: "json",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+  const { data: gioRes, error } = await POST("/gio", {
+    body: {
+      domain: 714,
+      id: gioID,
+    },
+    parseAs: "json",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
 
-    if (error || !gioRes) {
-      throw new Error(error ?? "Gio request failed");
-    }
-
-    const text = stringToHex(gioRes.data)
-    const output = JSON.stringify({
-      ...gioRes,
-      text,
-    }, null, 4);
-    return output;
-  } catch (error) {
-    console.error(error);
-    throw error;
+  if (error || !gioRes) {
+    throw new Error(error ?? "Gio request failed");
   }
+
+  const text = stringToHex(gioRes.data)
+  const output = JSON.stringify({
+    ...gioRes,
+    text,
+  }, null, 4);
+  return output;
 };

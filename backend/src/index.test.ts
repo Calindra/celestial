@@ -4,15 +4,16 @@ import createClient from "openapi-fetch";
 import type { components, paths } from "./schema"
 import { afterEach, before, describe, it, after } from "node:test"
 import assert from 'node:assert';
+// import { describe, beforeAll as before, afterAll as after, afterEach, it, assert , expect } from "vitest"
 import { fetchAndDecodeData, celestiaRelayInputBox } from "./handleGIO";
 import { encodeFunctionData, pad, stringToHex } from "viem";
 
-describe("index", () => {
+describe("Celestia", () => {
     const server = setupServer();
 
     before(() => server.listen({
         onUnhandledRequest: (req) => {
-            `Received an unhandled request: ${req.method} ${req.url}`
+            throw new Error(`Received an unhandled request: ${req.method} ${req.url}`)
         }
     }));
 
@@ -20,7 +21,7 @@ describe("index", () => {
     after(() => server.close());
 
     it("should handle advance request", async () => {
-        const baseUrl = "http://localhost:3000";
+        const baseUrl = new URL("http://localhost:3000");
         const exampleStr = "CartesiRocksCelestia";
 
         const namespace = pad(stringToHex(exampleStr), { size: 32, dir: "left" });
@@ -37,7 +38,7 @@ describe("index", () => {
         console.log("celestia payload", celestia);
 
         const { POST } = createClient<paths>({
-            baseUrl,
+            baseUrl: baseUrl.href,
         });
         const data: components["schemas"]["Advance"] = {
             metadata: {} as any,
@@ -51,7 +52,9 @@ describe("index", () => {
 
         let once = true;
 
-        server.use(http.post(`${baseUrl}/gio`, async () => {
+        const gioEndpointURL = new URL(baseUrl);
+        gioEndpointURL.pathname = "/gio";
+        server.use(http.post(gioEndpointURL.href, async () => {
             if (once) {
                 once = false;
                 return HttpResponse.json(responseGIO, { status: 200 });
@@ -68,6 +71,7 @@ describe("index", () => {
             result = JSON.parse(decoded);
             return result;
         }
+        // await expect(call()).resolves.not.toThrow();
         await assert.doesNotReject(call);
         assert.ok("data" in result, "data key is missing");
         assert.strictEqual(result.data, responseGIO.data, "data is not equal");
